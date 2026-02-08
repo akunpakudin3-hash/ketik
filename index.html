@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian Kecepatan Mengetik SMP - Kelas 8</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+    
+    <!-- Supabase SDK (Pengganti Firebase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        surface: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 900: '#0f172a' }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'fadeIn': 'fadeIn 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.95)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.1) 0px, transparent 50%);
+            color: #1e293b;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .clean-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1);
+        }
+        .clean-input {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #1e293b;
+            transition: all 0.2s ease;
+        }
+        .clean-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            outline: none;
+        }
+        #typing-area {
+            line-height: 1.8;
+            font-size: 1.6rem;
+            user-select: none;
+        }
+        .letter { position: relative; transition: color 0.1s ease; }
+        .letter.correct { color: #334155; }
+        .letter.incorrect {
+            color: #ef4444; background-color: #fef2f2;
+            text-decoration: underline; text-decoration-color: #ef4444; border-radius: 2px;
+        }
+        .letter.pending { color: #cbd5e1; }
+        .letter.active::before {
+            content: ''; position: absolute; left: -1px; top: 15%; height: 70%; width: 2px;
+            background-color: #2563eb; border-radius: 2px;
+            animation: blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        
+        /* Keyboard & Scrollbar */
+        .keyboard-base {
+            background: #e2e8f0; padding: 12px; border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+            border: 1px solid #cbd5e1; display: inline-block;
+        }
+        .key-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
+        .key {
+            height: 44px; width: 44px; background: #ffffff; border-radius: 8px; color: #475569;
+            font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+            display: flex; align-items: center; justify-content: center;
+            border-bottom: 2px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .key.w-auto { width: auto; padding: 0 16px; }
+        .key.w-space { width: 280px; }
+        .key.w-tab { width: 70px; }
+        .key.w-caps { width: 80px; }
+        .key.w-enter { width: 90px; }
+        .key.w-shift { width: 105px; }
+        .key.w-backspace { width: 70px; }
+        .key.pressed {
+            transform: translateY(2px); background-color: #3b82f6; color: #ffffff;
+            border-bottom: 0px solid transparent; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 2px solid #f8fafc; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25); border: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35); transform: translateY(-1px); }
+        .btn-primary:disabled { background: #cbd5e1; box-shadow: none; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #ffffff; border: 1px solid #e2e8f0; color: #475569; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .btn-secondary:hover { background: #f8fafc; color: #1e293b; border-color: #cbd5e1; }
+        .brand-text-gradient {
+            background: linear-gradient(to right, #2563eb, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-full selection:bg-brand-100 selection:text-brand-700">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center px-8 py-5 clean-panel sticky top-0 z-40 border-b-0">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-600 to-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                <i class="fas fa-keyboard text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800 font-sans">UJIAN MENGETIK <span class="brand-text-gradient">PRO</span></h1>
+                <p class="text-xs text-slate-500 tracking-wide font-medium">SMP KELAS 8 • SISTEM TERINTEGRASI</p>
+            </div>
+        </div>
+        
+        <div id="live-stats" class="hidden flex gap-8 bg-white px-6 py-2 rounded-full border border-slate-200 shadow-sm">
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Waktu</span>
+                <span id="timer" class="text-xl font-mono text-brand-600 font-bold">60</span>
+            </div>
+            <div class="w-px h-8 bg-slate-100"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">WPM</span>
+                <span id="wpm-live" class="text-xl font-mono text-slate-700 font-bold">0</span>
+            </div>
+            <div class="w-px h-8 bg-slate-100"></div>
+            <div class="flex flex-col items-center">
+                <span class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Akurasi</span>
+                <span id="accuracy-live" class="text-xl font-mono text-slate-700 font-bold">100%</span>
+            </div>
+        </div>
+
+        <button id="leaderboard-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 group">
+            <span class="w-6 h-6 rounded-full bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition">
+                <i class="fas fa-trophy text-brand-500 text-xs"></i>
+            </span>
+            <span>Peringkat</span>
+        </button>
+    </header>
+
+    <!-- Main -->
+    <main class="flex-grow flex flex-col items-center justify-center relative w-full max-w-6xl mx-auto p-6">
+        <div id="game-container" class="w-full relative flex-grow flex flex-col justify-center">
+            <div id="focus-error" class="hidden absolute inset-0 z-20 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-xl cursor-pointer">
+                <div class="bg-white px-6 py-3 rounded-full border border-brand-200 text-brand-600 font-bold shadow-lg shadow-brand-500/10 animate-bounce">
+                    <i class="fas fa-mouse-pointer mr-2"></i> Klik untuk melanjutkan
+                </div>
+            </div>
+            <div id="typing-area" class="font-mono text-justify break-words text-slate-300 bg-transparent py-8 px-4 min-h-[200px] outline-none max-w-4xl mx-auto w-full"></div>
+            <div class="flex justify-center mt-4 opacity-50 hover:opacity-100 transition">
+                <button id="quick-restart" class="text-slate-400 hover:text-slate-700 transition p-3 rounded-full hover:bg-slate-200" title="Batal & Ulang">
+                    <i class="fas fa-redo"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Start Overlay (Floating Modal) -->
+    <div id="start-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-3xl border border-white/50 shadow-2xl w-full max-w-md relative overflow-hidden flex flex-col animate-float">
+            <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-brand-50 to-white z-0"></div>
+            <div class="absolute top-4 right-4 z-10 w-20 h-20 bg-brand-100/50 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div class="text-center mb-6 relative z-10">
+                <div class="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                    <i class="fas fa-user-circle text-3xl text-brand-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800 font-sans">Identitas Siswa</h2>
+                <p class="text-slate-500 text-sm">Lengkapi data untuk memulai ujian.</p>
+            </div>
+            
+            <div class="flex flex-col gap-4 relative z-10">
+                <div id="limit-warning" class="hidden bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl text-sm text-center flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fas fa-lock"></i> Kesempatan ujian telah habis.
+                </div>
+                <div class="space-y-1.5">
+                    <label class="block text-xs text-slate-500 font-bold uppercase tracking-wider ml-1">Nama Lengkap</label>
+                    <div class="relative">
+                        <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="input-nama" class="clean-input w-full rounded-xl pl-10 pr-4 py-3 text-sm font-medium" placeholder="Masukkan nama lengkap...">
+                    </div>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1 space-y-1.5">
+                        <label class="block text-xs text-slate-500 font-bold uppercase tracking-wider ml-1">Kelas (8)</label>
+                        <div class="relative">
+                            <i class="fas fa-layer-group absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs z-10"></i>
+                            <select id="input-kelas" class="clean-input w-full rounded-xl pl-10 pr-4 py-3 text-sm font-medium appearance-none cursor-pointer relative z-0">
+                                <option value="" disabled selected>Pilih</option>
+                                <option value="VIII-A">VIII-A</option>
+                                <option value="VIII-B">VIII-B</option>
+                                <option value="VIII-C">VIII-C</option>
+                                <option value="VIII-D">VIII-D</option>
+                                <option value="VIII-E">VIII-E</option>
+                                <option value="VIII-F">VIII-F</option>
+                                <option value="VIII-G">VIII-G</option>
+                                <option value="VIII-H">VIII-H</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="w-1/3 space-y-1.5">
+                        <label class="block text-xs text-slate-500 font-bold uppercase tracking-wider ml-1">No. Absen</label>
+                        <div class="relative">
+                            <i class="fas fa-hashtag absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="number" id="input-absen" class="clean-input w-full rounded-xl pl-9 pr-2 py-3 text-sm font-medium text-center" placeholder="00" min="1" max="40">
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2 pt-5 border-t border-slate-100 flex flex-col gap-3">
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase text-slate-400 font-bold">Waktu Ujian</span>
+                                <span class="font-mono font-bold text-slate-800 text-sm"><i class="far fa-clock mr-1 text-brand-500"></i> 60 Detik</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-[10px] uppercase text-slate-400 font-bold">Kesempatan</span>
+                                <span id="trials-display" class="font-mono font-bold text-brand-600 text-sm">2 / 2</span>
+                            </div>
+                    </div>
+                    <button id="start-btn" class="btn-primary w-full py-4 rounded-xl font-bold text-sm tracking-wide uppercase transition transform hover:scale-[1.02] active:scale-[0.98] flex justify-center items-center gap-2 shadow-lg shadow-brand-500/20">
+                        <span>Mulai Ujian</span> <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button id="dev-reset-btn" class="text-[10px] text-slate-300 hover:text-red-400 mt-1 transition text-center underline decoration-dotted">
+                        Reset Percobaan (Mode Tes)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Result Overlay -->
+    <div id="result-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 backdrop-blur-md hidden">
+        <div class="text-center w-full max-w-lg bg-white p-8 rounded-3xl border border-slate-200 shadow-2xl animate-[fadeIn_0.5s_ease-out] relative">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-400 to-brand-600"></div>
+            <div class="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-6 border border-green-100 shadow-sm">
+                <i class="fas fa-check text-green-500 text-3xl"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-slate-800 mb-1 font-sans">Ujian Selesai</h2>
+            <p class="text-slate-500 text-sm mb-8">Data nilai Anda telah berhasil direkam.</p>
+            <div class="bg-slate-50 p-5 rounded-2xl border border-slate-100 mb-8 text-left flex justify-between items-center shadow-inner">
+                <div>
+                    <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Nama Peserta</p>
+                    <p id="res-nama" class="text-xl font-bold text-slate-800 font-sans tracking-tight">-</p>
+                    <div class="flex gap-3 text-xs text-slate-500 mt-2">
+                        <span class="bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm flex items-center gap-1"><i class="fas fa-layer-group text-brand-500 text-[10px]"></i> <span class="text-slate-700 font-bold" id="res-kelas">-</span></span>
+                        <span class="bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">Absen: <span class="text-slate-700 font-bold" id="res-absen">-</span></span>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-5 mb-8">
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col items-center relative overflow-hidden group shadow-md hover:shadow-lg transition">
+                    <span class="text-5xl font-mono font-bold text-brand-600 tracking-tighter" id="final-wpm">0</span>
+                    <span class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">WPM (Speed)</span>
+                </div>
+                <div class="bg-white p-6 rounded-2xl border border-slate-100 flex flex-col items-center relative overflow-hidden group shadow-md hover:shadow-lg transition">
+                    <span class="text-5xl font-mono font-bold text-emerald-600 tracking-tighter" id="final-acc">0%</span>
+                    <span class="text-[10px] text-slate-400 mt-2 uppercase tracking-widest font-bold">Akurasi</span>
+                </div>
+            </div>
+            <div id="save-msg" class="h-6 text-xs mb-6 font-medium"></div>
+            <div class="flex gap-3 justify-center">
+                <button id="restart-btn" class="btn-secondary px-6 py-3.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                    <i class="fas fa-redo text-xs text-slate-400"></i> Ulang (<span id="btn-trials-left">1</span>)
+                </button>
+                <button id="show-rank-btn" class="btn-primary px-6 py-3.5 rounded-xl font-bold text-sm transition shadow-lg shadow-brand-500/20">
+                    Lihat Ranking
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboard Modal -->
+    <div id="leaderboard-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-md p-6 animate-[fadeIn_0.2s_ease-out]">
+        <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-slate-200">
+            <div class="p-6 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-2xl text-slate-800 font-sans flex items-center gap-2">
+                        <i class="fas fa-trophy text-brand-500"></i> Peringkat Kelas 8
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1">Data diurutkan berdasarkan WPM (Kecepatan) tertinggi.</p>
+                </div>
+                <button id="close-leaderboard" class="w-8 h-8 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition border border-slate-200 shadow-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 bg-white border-b border-slate-200 flex justify-between items-center">
+                 <div class="flex gap-2">
+                    <span class="px-3 py-1 rounded-full bg-brand-50 text-brand-600 text-xs font-bold border border-brand-100">Top Speed</span>
+                 </div>
+                <button id="download-csv-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-500/20">
+                    <i class="fas fa-file-csv"></i> Download CSV
+                </button>
+            </div>
+            <div class="p-0 overflow-y-auto flex-grow" id="leaderboard-list"></div>
+        </div>
+    </div>
+
+    <!-- Virtual Keyboard (Hidden on Mobile) -->
+    <footer class="clean-panel border-t border-slate-200 p-6 hidden lg:block relative z-10 bg-white/90">
+        <div class="flex justify-center">
+            <div class="keyboard-base">
+                <div class="key-row">
+                    <div class="key" data-code="Backquote">`</div><div class="key" data-code="Digit1">1</div><div class="key" data-code="Digit2">2</div><div class="key" data-code="Digit3">3</div><div class="key" data-code="Digit4">4</div><div class="key" data-code="Digit5">5</div><div class="key" data-code="Digit6">6</div><div class="key" data-code="Digit7">7</div><div class="key" data-code="Digit8">8</div><div class="key" data-code="Digit9">9</div><div class="key" data-code="Digit0">0</div><div class="key" data-code="Minus">-</div><div class="key" data-code="Equal">=</div><div class="key w-backspace text-xs" data-code="Backspace"><i class="fas fa-backspace"></i></div>
+                </div>
+                <div class="key-row">
+                    <div class="key w-tab text-[10px]" data-code="Tab">TAB</div><div class="key" data-code="KeyQ">Q</div><div class="key" data-code="KeyW">W</div><div class="key" data-code="KeyE">E</div><div class="key" data-code="KeyR">R</div><div class="key" data-code="KeyT">T</div><div class="key" data-code="KeyY">Y</div><div class="key" data-code="KeyU">U</div><div class="key" data-code="KeyI">I</div><div class="key" data-code="KeyO">O</div><div class="key" data-code="KeyP">P</div><div class="key" data-code="BracketLeft">[</div><div class="key" data-code="BracketRight">]</div><div class="key w-auto" data-code="Backslash">\</div>
+                </div>
+                <div class="key-row">
+                    <div class="key w-caps text-[10px]" data-code="CapsLock">CAPS</div><div class="key" data-code="KeyA">A</div><div class="key" data-code="KeyS">S</div><div class="key" data-code="KeyD">D</div><div class="key" data-code="KeyF">F</div><div class="key" data-code="KeyG">G</div><div class="key" data-code="KeyH">H</div><div class="key" data-code="KeyJ">J</div><div class="key" data-code="KeyK">K</div><div class="key" data-code="KeyL">L</div><div class="key" data-code="Semicolon">;</div><div class="key" data-code="Quote">'</div><div class="key w-enter text-[10px]" data-code="Enter">ENTER</div>
+                </div>
+                <div class="key-row">
+                    <div class="key w-shift text-[10px]" data-code="ShiftLeft">SHIFT</div><div class="key" data-code="KeyZ">Z</div><div class="key" data-code="KeyX">X</div><div class="key" data-code="KeyC">C</div><div class="key" data-code="KeyV">V</div><div class="key" data-code="KeyB">B</div><div class="key" data-code="KeyN">N</div><div class="key" data-code="KeyM">M</div><div class="key" data-code="Comma">,</div><div class="key" data-code="Period">.</div><div class="key" data-code="Slash">/</div><div class="key w-shift text-[10px]" data-code="ShiftRight">SHIFT</div>
+                </div>
+                <div class="key-row">
+                    <div class="key w-space" data-code="Space"></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- KONFIGURASI SUPABASE (GANTI DENGAN PUNYA ANDA) ---
+        // Anda bisa mendapatkan ini di Dashboard Supabase > Project Settings > API
+        const supabaseUrl = 'MASUKKAN_SUPABASE_URL_DISINI';
+        const supabaseKey = 'MASUKKAN_SUPABASE_ANON_KEY_DISINI';
+        
+        // Inisialisasi Klien Supabase
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+        let allResultsData = []; 
+
+        // --- Game Logic ---
+        const paragraphs = [
+            "Pendidikan adalah senjata paling ampuh untuk mengubah dunia. Di era digital ini, siswa SMP diharapkan mampu menguasai teknologi informasi dengan baik. Kemampuan mengetik cepat dan tepat menjadi salah satu keterampilan dasar yang mendukung proses belajar.",
+            "Kebersihan lingkungan sekolah adalah tanggung jawab bersama. Dengan menjaga kebersihan, kita menciptakan suasana belajar yang nyaman dan sehat. Buanglah sampah pada tempatnya dan rajinlah mencuci tangan untuk mencegah penyebaran penyakit.",
+            "Membaca buku adalah jendela dunia. Melalui membaca, kita dapat mengetahui berbagai informasi dan pengetahuan baru. Jadikan membaca sebagai hobi yang menyenangkan, karena buku adalah sumber inspirasi yang tak terbatas bagi generasi muda Indonesia.",
+            "Disiplin adalah kunci kesuksesan. Siswa yang disiplin akan lebih mudah mengatur waktu antara belajar dan bermain. Menghargai waktu berarti menghargai masa depan. Mulailah dari hal kecil seperti datang tepat waktu dan mengerjakan tugas sekolah dengan sungguh-sungguh."
+        ];
+
+        const MAX_TRIALS = 2;
+        let state = {
+            active: false, finished: false, duration: 60, timeLeft: 60,
+            fullText: "", words: [], charElements: [], currentIndex: 0,
+            correctChars: 0, incorrectChars: 0, timerInterval: null,
+            nama: "", kelas: "", absen: "", trialsUsed: 0
+        };
+
+        const typingArea = document.getElementById('typing-area');
+        const timerEl = document.getElementById('timer');
+        const wpmEl = document.getElementById('wpm-live');
+        const accEl = document.getElementById('accuracy-live');
+        const startOverlay = document.getElementById('start-overlay');
+        const resultOverlay = document.getElementById('result-overlay');
+        const liveStats = document.getElementById('live-stats');
+        
+        const inpNama = document.getElementById('input-nama');
+        const inpKelas = document.getElementById('input-kelas');
+        const inpAbsen = document.getElementById('input-absen');
+        const startBtn = document.getElementById('start-btn');
+        const trialsDisplay = document.getElementById('trials-display');
+        const limitWarning = document.getElementById('limit-warning');
+        const restartBtn = document.getElementById('restart-btn');
+        const devResetBtn = document.getElementById('dev-reset-btn');
+
+        function initTrials() {
+            const savedTrials = localStorage.getItem('typing_exam_trials_used');
+            if (savedTrials) state.trialsUsed = parseInt(savedTrials);
+            updateTrialUI();
+        }
+        
+        function updateTrialUI() {
+            const left = MAX_TRIALS - state.trialsUsed;
+            trialsDisplay.innerText = `${state.trialsUsed} / ${MAX_TRIALS}`;
+            document.getElementById('btn-trials-left').innerText = left > 0 ? left : 0;
+            
+            if (state.trialsUsed >= MAX_TRIALS) {
+                startBtn.disabled = true;
+                startBtn.innerHTML = '<i class="fas fa-lock mr-2"></i> KESEMPATAN HABIS';
+                limitWarning.classList.remove('hidden');
+                inpNama.disabled = true; inpKelas.disabled = true; inpAbsen.disabled = true;
+                restartBtn.disabled = true; restartBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<span>Mulai Ujian</span> <i class="fas fa-arrow-right"></i>';
+                limitWarning.classList.add('hidden');
+                inpNama.disabled = false; inpKelas.disabled = false; inpAbsen.disabled = false;
+                restartBtn.disabled = false; restartBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        devResetBtn.addEventListener('click', () => {
+            state.trialsUsed = 0; localStorage.setItem('typing_exam_trials_used', 0); updateTrialUI();
+            alert("Batas ujian di-reset! (Hanya untuk testing)");
+        });
+
+        initTrials();
+        loadLeaderboard(); // Load data on start
+
+        startBtn.addEventListener('click', prepareGame);
+        restartBtn.addEventListener('click', resetGame);
+        document.getElementById('quick-restart').addEventListener('click', resetGame);
+        document.getElementById('focus-error').addEventListener('click', () => document.getElementById('focus-error').classList.add('hidden'));
+
+        window.addEventListener('keydown', (e) => {
+            const keyEl = document.querySelector(`.key[data-code="${e.code}"]`);
+            if(keyEl) keyEl.classList.add('pressed');
+            if (e.key === "Tab") { e.preventDefault(); return; }
+            if (e.key === " ") { e.preventDefault(); }
+
+            if (!state.active && !state.finished && startOverlay.classList.contains('hidden')) {
+                 if (isValidChar(e)) startTimer();
+            }
+            if (state.active && !state.finished) {
+                if (e.key === "Backspace") handleBackspace(e.ctrlKey);
+                else { if (isValidChar(e) || e.key === " ") handleInput(e.key); }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const keyEl = document.querySelector(`.key[data-code="${e.code}"]`);
+            if(keyEl) keyEl.classList.remove('pressed');
+        });
+
+        function isValidChar(e) { return e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey; }
+
+        function prepareGame() {
+            if (state.trialsUsed >= MAX_TRIALS) return;
+            const nama = inpNama.value.trim(); const kelas = inpKelas.value; const absen = inpAbsen.value.trim();
+            if (!nama || !kelas || !absen) { alert("Harap isi Nama, Kelas, dan No. Absen dengan lengkap!"); return; }
+
+            state.nama = nama; state.kelas = kelas; state.absen = absen;
+            const p = paragraphs[Math.floor(Math.random() * paragraphs.length)];
+            state.fullText = p.split("");
+            
+            typingArea.innerHTML = ''; state.charElements = [];
+            state.fullText.forEach(char => {
+                const span = document.createElement('span'); span.innerText = char; span.className = 'letter pending';
+                typingArea.appendChild(span); state.charElements.push(span);
+            });
+
+            state.currentIndex = 0; state.correctChars = 0; state.incorrectChars = 0;
+            state.timeLeft = state.duration; state.active = false; state.finished = false;
+            timerEl.innerText = state.duration; wpmEl.innerText = '0'; accEl.innerText = '100%';
+            state.charElements[0].classList.add('active');
+
+            startOverlay.classList.add('hidden'); resultOverlay.classList.add('hidden');
+            liveStats.classList.remove('hidden');
+        }
+
+        function startTimer() {
+            state.active = true;
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--; timerEl.innerText = state.timeLeft;
+                const timeElapsed = state.duration - state.timeLeft;
+                const wpm = Math.round((state.correctChars / 5) / (timeElapsed / 60));
+                if(timeElapsed > 0) wpmEl.innerText = wpm;
+                if (state.timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function handleInput(key) {
+            const currentEl = state.charElements[state.currentIndex];
+            const correctChar = state.fullText[state.currentIndex];
+            currentEl.classList.remove('active');
+            if (key === correctChar) { currentEl.className = 'letter correct'; state.correctChars++; } 
+            else { currentEl.className = 'letter incorrect'; state.incorrectChars++; }
+            state.currentIndex++;
+            const total = state.correctChars + state.incorrectChars;
+            const acc = Math.round((state.correctChars / total) * 100);
+            accEl.innerText = acc + "%";
+            if (state.currentIndex >= state.fullText.length) endGame();
+            else state.charElements[state.currentIndex].classList.add('active');
+        }
+
+        function handleBackspace(ctrlKey) {
+            if (state.currentIndex > 0) {
+                if (state.currentIndex < state.fullText.length) state.charElements[state.currentIndex].classList.remove('active');
+                state.currentIndex--;
+                const prevEl = state.charElements[state.currentIndex];
+                if (prevEl.classList.contains('correct')) state.correctChars--;
+                if (prevEl.classList.contains('incorrect')) state.incorrectChars--;
+                prevEl.className = 'letter pending active';
+            }
+        }
+
+        function endGame() {
+            clearInterval(state.timerInterval); state.active = false; state.finished = true;
+            state.trialsUsed++; localStorage.setItem('typing_exam_trials_used', state.trialsUsed); updateTrialUI();
+
+            const grossWPM = Math.round((state.correctChars / 5) / (state.duration / 60)); 
+            const accuracy = state.correctChars + state.incorrectChars === 0 ? 0 : Math.round((state.correctChars / (state.correctChars + state.incorrectChars)) * 100);
+
+            document.getElementById('final-wpm').innerText = grossWPM;
+            document.getElementById('final-acc').innerText = accuracy + "%";
+            document.getElementById('res-nama').innerText = state.nama;
+            document.getElementById('res-kelas').innerText = state.kelas;
+            document.getElementById('res-absen').innerText = state.absen;
+
+            resultOverlay.classList.remove('hidden');
+            saveResult(grossWPM, accuracy);
+        }
+
+        function resetGame() {
+            clearInterval(state.timerInterval); state.active = false;
+            if (state.trialsUsed >= MAX_TRIALS) {
+                startOverlay.classList.remove('hidden'); resultOverlay.classList.add('hidden');
+                liveStats.classList.add('hidden'); typingArea.innerHTML = ''; return;
+            }
+            startOverlay.classList.remove('hidden'); resultOverlay.classList.add('hidden');
+            liveStats.classList.add('hidden'); typingArea.innerHTML = '';
+        }
+
+        // --- SUPABASE FUNCTIONS ---
+        async function saveResult(wpm, acc) {
+            const msg = document.getElementById('save-msg');
+            msg.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Menyimpan nilai...';
+            msg.className = "h-6 text-xs mb-6 font-medium text-brand-500";
+            
+            // Simpan ke Tabel Supabase 'exam_results'
+            const { error } = await supabase.from('exam_results').insert({
+                nama: state.nama,
+                kelas: state.kelas,
+                absen: state.absen,
+                wpm: wpm,
+                accuracy: acc,
+                trial_no: state.trialsUsed
+            });
+
+            if (error) {
+                console.error("Error:", error);
+                msg.innerText = "Gagal menyimpan online. Cek koneksi / konfigurasi.";
+                msg.className = "h-6 text-xs mb-6 font-medium text-red-500";
+            } else {
+                msg.innerHTML = '<i class="fas fa-check-circle"></i> Nilai berhasil disimpan!';
+                msg.className = "h-6 text-xs mb-6 font-medium text-emerald-600";
+                loadLeaderboard(); // Refresh table
+            }
+        }
+
+        async function loadLeaderboard() {
+            const { data, error } = await supabase
+                .from('exam_results')
+                .select('*')
+                .order('wpm', { ascending: false });
+
+            if (error) {
+                console.error("Error loading:", error);
+                return;
+            }
+
+            allResultsData = data.map(d => ({
+                ...d,
+                date: new Date(d.created_at).toLocaleString('id-ID')
+            }));
+            
+            // Sort by WPM descending, then Accuracy
+            allResultsData.sort((a,b) => {
+                if (b.wpm !== a.wpm) return b.wpm - a.wpm;
+                return b.accuracy - a.accuracy;
+            });
+            
+            renderTable(allResultsData);
+        }
+
+        function renderTable(data) {
+            const list = document.getElementById('leaderboard-list');
+            if(data.length === 0) {
+                list.innerHTML = `<div class="p-8 text-center text-slate-400 italic">Belum ada data nilai masuk.</div>`;
+                return;
+            }
+
+            let html = '<table class="w-full text-left text-sm text-slate-600">';
+            html += '<thead class="bg-slate-50 text-xs uppercase text-slate-500 sticky top-0 border-b border-slate-200">';
+            html += '<tr><th class="px-6 py-4 font-bold tracking-wider">#</th><th class="px-6 py-4 font-bold tracking-wider">Nama</th><th class="px-6 py-4 font-bold tracking-wider">Kelas</th><th class="px-6 py-4 text-right font-bold tracking-wider">WPM</th><th class="px-6 py-4 text-right font-bold tracking-wider">Akurasi</th><th class="px-6 py-4 text-right font-bold tracking-wider">Waktu</th></tr>';
+            html += '</thead><tbody>';
+            
+            data.forEach((r, i) => {
+                let rankClass = "text-slate-400 font-mono";
+                let rowClass = "hover:bg-slate-50 transition border-b border-slate-100";
+                let icon = "";
+
+                if(i === 0) { rankClass = "text-brand-600 font-bold text-lg"; rowClass = "bg-brand-50/50 hover:bg-brand-50 border-b border-brand-100 transition"; icon = '<i class="fas fa-crown text-brand-500 text-xs ml-2"></i>'; }
+                if(i === 1) { rankClass = "text-slate-600 font-bold text-lg"; icon = '<i class="fas fa-medal text-slate-400 text-xs ml-2"></i>'; }
+                if(i === 2) { rankClass = "text-orange-500 font-bold text-lg"; icon = '<i class="fas fa-medal text-orange-400 text-xs ml-2"></i>'; }
+
+                html += `<tr class="${rowClass}">
+                    <td class="px-6 py-3 ${rankClass}">${i + 1}</td>
+                    <td class="px-6 py-3 text-slate-800 font-bold flex items-center">${r.nama} ${icon}</td>
+                    <td class="px-6 py-3 text-brand-600 font-mono font-bold">${r.kelas}</td>
+                    <td class="px-6 py-3 text-right font-mono font-bold text-slate-900 text-base">${r.wpm}</td>
+                    <td class="px-6 py-3 text-right font-mono ${r.accuracy >= 95 ? 'text-emerald-600 font-bold' : 'text-slate-600'}">${r.accuracy}%</td>
+                    <td class="px-6 py-3 text-right text-xs text-slate-400 font-mono">${r.date.split(' ')[0]}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            list.innerHTML = html;
+        }
+
+        function downloadCSV() {
+            if (allResultsData.length === 0) { alert("Belum ada data untuk diunduh."); return; }
+            let csvContent = "data:text/csv;charset=utf-8,Ranking,Nama Lengkap,Kelas,No Absen,WPM (Kecepatan),Akurasi (%),Waktu Ujian\n"; 
+            allResultsData.forEach((row, index) => {
+                const cleanName = `"${row.nama.replace(/"/g, '""')}"`; 
+                const rowStr = `${index + 1},${cleanName},${row.kelas},${row.absen},${row.wpm},${row.accuracy},"${row.date}"`;
+                csvContent += rowStr + "\n";
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "ranking_nilai_mengetik_kelas8.csv");
+            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        const lbModal = document.getElementById('leaderboard-modal');
+        document.getElementById('leaderboard-btn').onclick = () => lbModal.classList.remove('hidden');
+        document.getElementById('show-rank-btn').onclick = () => { resultOverlay.classList.add('hidden'); lbModal.classList.remove('hidden'); };
+        document.getElementById('close-leaderboard').onclick = () => { lbModal.classList.add('hidden'); if(state.finished) resultOverlay.classList.remove('hidden'); else if(!state.active) startOverlay.classList.remove('hidden'); };
+        document.getElementById('download-csv-btn').addEventListener('click', downloadCSV);
+    </script>
+</body>
+</html>
