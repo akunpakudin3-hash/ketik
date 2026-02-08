@@ -135,6 +135,11 @@
         #loading-overlay {
             z-index: 100;
         }
+        
+        /* Toast Notification */
+        #toast-notification {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
     </style>
 </head>
 <body class="flex flex-col h-full selection:bg-brand-100 selection:text-brand-700">
@@ -200,13 +205,25 @@
 
             <div id="typing-area" class="font-mono text-justify break-words text-slate-300 bg-transparent py-8 px-4 min-h-[200px] outline-none max-w-4xl mx-auto w-full"></div>
             
-            <div class="flex justify-center mt-4 opacity-50 hover:opacity-100 transition">
+            <!-- Quick Restart Button Hidden -->
+            <div class="flex justify-center mt-4 opacity-50 hover:opacity-100 transition hidden">
                 <button id="quick-restart" class="text-slate-400 hover:text-slate-700 transition p-3 rounded-full hover:bg-slate-200" title="Batal & Ulang">
                     <i class="fas fa-redo"></i>
                 </button>
             </div>
         </div>
     </main>
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="fixed top-24 right-6 z-[70] transform translate-x-full opacity-0 pointer-events-none">
+        <div class="bg-white border-l-4 border-brand-500 shadow-xl rounded-r-lg p-4 flex items-center gap-3 pr-8">
+            <div class="text-brand-500"><i class="fas fa-info-circle text-xl"></i></div>
+            <div>
+                <h4 class="font-bold text-sm text-slate-800">Notifikasi Sistem</h4>
+                <p id="toast-message" class="text-xs text-slate-500">Pesan notifikasi...</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Start Overlay (Floating Modal) -->
     <div id="start-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-sm">
@@ -220,6 +237,8 @@
                 </div>
                 <h2 class="text-2xl font-bold text-slate-800 font-sans">Identitas Siswa</h2>
                 <p class="text-slate-500 text-sm">Lengkapi data untuk memulai ujian.</p>
+                <!-- Show Client ID small -->
+                <p class="text-[10px] text-slate-400 mt-2">Komputer ID: <span id="display-client-id" class="font-mono">...</span></p>
             </div>
             
             <div class="flex flex-col gap-4 relative z-10">
@@ -368,25 +387,50 @@
 
     <!-- Admin Dashboard Modal -->
     <div id="admin-dashboard-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-white/95 backdrop-blur-md p-6">
-        <div class="bg-white w-full h-full rounded-2xl shadow-2xl flex flex-col border border-slate-200">
-            <div class="p-6 bg-slate-900 text-white flex justify-between items-center rounded-t-2xl">
+        <div class="bg-white w-full h-full rounded-2xl shadow-2xl flex flex-col border border-slate-200 overflow-hidden">
+            <div class="p-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h3 class="font-bold text-2xl font-sans flex items-center gap-2">
                         <i class="fas fa-database text-brand-400"></i> Admin Dashboard
                     </h3>
-                    <p class="text-sm text-slate-400 mt-1">Kelola data ujian dan unduh laporan.</p>
+                    <p class="text-sm text-slate-400 mt-1">Kelola data ujian dan reset komputer siswa.</p>
                 </div>
-                <div class="flex gap-3">
-                    <button id="admin-download-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-500/20">
-                        <i class="fas fa-file-excel"></i> Download Excel (.xlsx)
+                <!-- ADMIN ACTION BUTTONS -->
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <button id="admin-reset-global-btn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-red-500/20" title="Reset kesempatan untuk SEMUA komputer yang sedang aktif/online">
+                        <i class="fas fa-broadcast-tower"></i> Reset SEMUA
+                    </button>
+                    <button id="admin-download-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-emerald-500/20">
+                        <i class="fas fa-file-excel"></i> Excel
                     </button>
                     <button id="close-admin-dashboard" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm transition border border-slate-700">
                         Tutup
                     </button>
                 </div>
             </div>
-            <div class="p-0 overflow-y-auto flex-grow bg-slate-50" id="admin-table-container">
-                <!-- Admin Table loaded here -->
+            
+            <!-- Dashboard Content -->
+            <div class="flex flex-col md:flex-row h-full overflow-hidden bg-slate-50">
+                <!-- Left: Exam Results Table -->
+                <div class="flex-grow p-4 overflow-y-auto border-r border-slate-200">
+                    <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fas fa-list"></i> Data Nilai Masuk</h4>
+                    <div id="admin-table-container" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                         <!-- Admin Table loaded here -->
+                    </div>
+                </div>
+
+                <!-- Right: Online Computers Panel -->
+                <div class="w-full md:w-80 p-4 bg-white border-l border-slate-200 overflow-y-auto">
+                    <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                        <i class="fas fa-network-wired text-green-500"></i> Komputer Online <span id="online-count" class="bg-green-100 text-green-600 text-xs px-2 py-0.5 rounded-full">0</span>
+                    </h4>
+                    <p class="text-xs text-slate-400 mb-4">Klik tombol reset di sebelah nama komputer untuk mereset sesi siswa tersebut.</p>
+                    
+                    <div id="online-computers-list" class="space-y-2">
+                        <!-- List of computers will appear here -->
+                        <div class="text-center text-slate-400 text-xs py-4 italic">Menunggu koneksi...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -418,11 +462,21 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJwcXl1YW90c3h1anNxc3h4ZGx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NTgwMTYsImV4cCI6MjA4NjEzNDAxNn0.JzqIzLN-O7B0CVVLjtft4LLlF4k15ulmo3mPYMexvHw';
         const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey); 
 
-        const geminiApiKey = ""; // ISIKAN API KEY GEMINI DISINI (Jika kosong, akan pakai teks default)
+        const geminiApiKey = ""; 
 
         let allResultsData = []; 
+        let examChannel = null;
 
-        // --- Check Connection ---
+        // --- IDENTITY MANAGEMENT ---
+        // Generate Unique ID for each browser tab/session
+        const myClientId = localStorage.getItem('typing_exam_client_id') || crypto.randomUUID().substring(0, 8);
+        localStorage.setItem('typing_exam_client_id', myClientId);
+        
+        // Show ID in UI
+        const displayIdEl = document.getElementById('display-client-id');
+        if(displayIdEl) displayIdEl.innerText = myClientId;
+
+        // --- Check Connection & Init Realtime ---
         async function checkConnection() {
             const dot = document.getElementById('db-dot');
             const text = document.getElementById('db-text');
@@ -441,6 +495,166 @@
             }
         }
         checkConnection();
+
+        // --- SETUP SUPABASE REALTIME (BROADCAST & PRESENCE) ---
+        function setupRealtime() {
+            // Gunakan channel tetap agar semua user masuk 'room' yang sama
+            examChannel = supabaseClient.channel('exam_room_global_v2');
+            
+            examChannel
+                // 1. LISTEN: Reset Commands
+                .on('broadcast', { event: 'cmd_reset' }, ({ payload }) => {
+                    console.log('Received reset command:', payload);
+                    
+                    // Logic: Reset jika Target = 'ALL' atau Target = MyID
+                    if (payload.target === 'ALL' || payload.target === myClientId) {
+                        performLocalReset(true); 
+                    }
+                })
+                // 2. LISTEN: Presence Sync (Who is online?)
+                .on('presence', { event: 'sync' }, () => {
+                    const newState = examChannel.presenceState();
+                    renderOnlineComputers(newState);
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Connected to exam room as:', myClientId);
+                        // 3. TRACK: Send initial status
+                        updatePresence();
+                    }
+                });
+        }
+        setupRealtime();
+
+        // --- NEW: Update Presence Function (Sync Status) ---
+        async function updatePresence() {
+            if (!examChannel || !myClientId) return;
+            
+            // Check status terkunci/siap
+            const isLocked = state.trialsUsed >= MAX_TRIALS;
+            const statusText = isLocked ? 'TERKUNCI' : 'SIAP';
+            
+            await examChannel.track({
+                id: myClientId,
+                name: localStorage.getItem('typing_last_name') || 'Siswa (' + myClientId + ')',
+                status: statusText, // Kirim status ke admin
+                online_at: new Date().toISOString()
+            });
+        }
+
+        // --- Render Online Computers List (Admin UI) ---
+        function renderOnlineComputers(presenceState) {
+            const listEl = document.getElementById('online-computers-list');
+            const countEl = document.getElementById('online-count');
+            
+            // Flatten presence state object to array
+            const users = [];
+            for (const key in presenceState) {
+                users.push(...presenceState[key]);
+            }
+            
+            // Update count
+            if(countEl) countEl.innerText = users.length;
+
+            if (!listEl) return;
+            
+            if (users.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-slate-400 text-xs py-4 italic">Tidak ada komputer online.</div>';
+                return;
+            }
+
+            let html = '';
+            users.forEach(user => {
+                const isMe = user.id === myClientId ? '(Ini)' : '';
+                // Cek status untuk warna indikator
+                const statusColor = user.status === 'TERKUNCI' ? 'text-red-500 bg-red-50 border-red-200' : 'text-green-600 bg-green-50 border-green-200';
+                const statusDot = user.status === 'TERKUNCI' ? 'bg-red-500' : 'bg-green-500';
+                
+                html += `
+                <div class="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100 mb-2">
+                    <div class="flex items-center gap-2 overflow-hidden flex-grow">
+                        <div class="w-2 h-2 ${statusDot} rounded-full animate-pulse flex-shrink-0"></div>
+                        <div class="flex flex-col truncate min-w-0">
+                            <span class="text-xs font-bold text-slate-700 truncate" title="${user.name}">${user.name}</span>
+                            <div class="flex gap-2 items-center">
+                                <span class="text-[10px] text-slate-400 font-mono">ID: ${user.id} ${isMe}</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded border ${statusColor} font-bold">${user.status || 'ONLINE'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="sendResetCommand('${user.id}', this)" class="ml-2 bg-white hover:bg-orange-50 text-orange-600 border border-orange-200 hover:border-orange-300 px-3 py-1.5 rounded text-[10px] font-bold transition shadow-sm whitespace-nowrap" title="Reset hanya komputer ini">
+                        Reset
+                    </button>
+                </div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+        // --- Send Reset Command (Admin Action) ---
+        // Updated to accept 'btnElement' for UI feedback
+        window.sendResetCommand = async (targetId, btnElement) => {
+            if(!confirm(`Reset akses ujian untuk Komputer ID: ${targetId}?`)) return;
+
+            // Feedback Visual pada tombol
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "Mengirim...";
+            btnElement.disabled = true;
+
+            try {
+                await examChannel.send({
+                    type: 'broadcast',
+                    event: 'cmd_reset',
+                    payload: { target: targetId }
+                });
+                
+                // Feedback Sukses
+                btnElement.innerText = "Sukses!";
+                btnElement.classList.add("text-green-600", "border-green-200", "bg-green-50");
+                btnElement.classList.remove("text-orange-600", "border-orange-200");
+                
+                // Kembalikan tombol setelah 2 detik
+                setTimeout(() => {
+                    btnElement.innerText = originalText;
+                    btnElement.disabled = false;
+                    btnElement.classList.remove("text-green-600", "border-green-200", "bg-green-50");
+                    btnElement.classList.add("text-orange-600", "border-orange-200");
+                }, 2000);
+
+            } catch (e) {
+                console.error("Gagal mengirim reset:", e);
+                alert("Gagal mengirim perintah reset. Cek koneksi internet.");
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        };
+
+        // Fungsi Reset Lokal (bisa dipanggil manual atau via sinyal)
+        function performLocalReset(isRemote = false) {
+            localStorage.removeItem('typing_exam_trials_used');
+            state.trialsUsed = 0;
+            updateTrialUI();
+            
+            // PENTING: Update status kehadiran agar admin melihat "SIAP"
+            updatePresence();
+            
+            if (isRemote) {
+                showToast("Limit Ujian Di-Reset oleh Admin.");
+                // Update nama di presence jika sudah berubah
+                if (state.nama) {
+                     localStorage.setItem('typing_last_name', state.nama);
+                }
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast-notification');
+            const msg = document.getElementById('toast-message');
+            msg.innerText = message;
+            toast.classList.remove('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+            }, 4000);
+        }
 
         // --- GEMINI AI FUNCTIONS ---
         const defaultParagraphs = [
@@ -492,7 +706,7 @@
         const MAX_TRIALS = 2;
         let state = {
             active: false, finished: false, 
-            startTime: 0, elapsedTime: 0, // NEW: Stopwatch Logic
+            startTime: 0, elapsedTime: 0, 
             fullText: "", words: [], charElements: [], currentIndex: 0,
             correctChars: 0, incorrectChars: 0, timerInterval: null,
             nama: "", kelas: "", absen: "", trialsUsed: 0
@@ -521,6 +735,7 @@
             const savedTrials = localStorage.getItem('typing_exam_trials_used');
             if (savedTrials) state.trialsUsed = parseInt(savedTrials);
             updateTrialUI();
+            updatePresence(); // Sync status saat init
         }
         
         function updateTrialUI() {
@@ -591,6 +806,17 @@
 
             state.nama = nama; state.kelas = kelas; state.absen = absen;
             
+            // Update nama di presence tracking
+            localStorage.setItem('typing_last_name', nama);
+            if(examChannel) {
+                await examChannel.track({
+                    id: myClientId,
+                    name: nama,
+                    status: 'SEDANG UJIAN', // Update status sedang ujian
+                    online_at: new Date().toISOString()
+                });
+            }
+
             // Show loading overlay for AI
             loadingOverlay.classList.remove('hidden');
             const text = await getAIParagraph();
@@ -659,6 +885,9 @@
         async function endGame() {
             clearInterval(state.timerInterval); state.active = false; state.finished = true;
             state.trialsUsed++; localStorage.setItem('typing_exam_trials_used', state.trialsUsed); updateTrialUI();
+            
+            // Update status Locked jika limit habis
+            updatePresence();
 
             // Final Calculation based on Elapsed Time
             const minutes = state.elapsedTime / 60;
@@ -667,9 +896,6 @@
 
             document.getElementById('final-wpm').innerText = grossWPM;
             document.getElementById('final-acc').innerText = accuracy + "%";
-            // document.getElementById('res-nama').innerText = state.nama; // Removed as removed from DOM in previous edits
-            // document.getElementById('res-kelas').innerText = state.kelas;
-            // document.getElementById('res-absen').innerText = state.absen;
             
             // Get AI Feedback
             aiFeedbackEl.innerText = "Sedang meminta komentar guru AI...";
@@ -683,6 +909,8 @@
 
         function resetGame() {
             clearInterval(state.timerInterval); state.active = false;
+            updatePresence(); // Kembalikan status ke SIAP atau TERKUNCI tergantung limit
+            
             if (state.trialsUsed >= MAX_TRIALS) {
                 startOverlay.classList.remove('hidden'); resultOverlay.classList.add('hidden');
                 liveStats.classList.add('hidden'); typingArea.innerHTML = ''; return;
@@ -744,6 +972,7 @@
         const closeAdminDash = document.getElementById('close-admin-dashboard');
         const adminDownloadBtn = document.getElementById('admin-download-btn');
         const adminLoginError = document.getElementById('admin-login-error'); // Pesan Error Element
+        const adminResetGlobalBtn = document.getElementById('admin-reset-global-btn');
 
         openAdminBtn.onclick = () => {
             adminLoginModal.classList.remove('hidden');
@@ -796,6 +1025,25 @@
             html += '</tbody></table>';
             container.innerHTML = html;
         }
+
+        // GLOBAL RESET BROADCAST
+        adminResetGlobalBtn.onclick = async () => {
+            if(confirm("RESET GLOBAL: Apakah Anda yakin ingin me-reset batas ujian untuk SEMUA KOMPUTER yang sedang online?\n\nSiswa yang sedang membuka halaman ini akan otomatis di-reset.")) {
+                const btnOriginal = adminResetGlobalBtn.innerHTML;
+                adminResetGlobalBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim Sinyal...';
+                
+                await examChannel.send({
+                    type: 'broadcast',
+                    event: 'cmd_reset',
+                    payload: { target: 'ALL' }
+                });
+                
+                setTimeout(() => {
+                    adminResetGlobalBtn.innerHTML = btnOriginal;
+                    alert("Sinyal reset telah dikirim ke seluruh komputer yang aktif.");
+                }, 500);
+            }
+        };
 
         function exportToExcel() {
             const btn = document.getElementById('admin-download-btn');
