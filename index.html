@@ -88,6 +88,16 @@
             content: ''; position: absolute; left: -1px; top: 15%; height: 70%; width: 2px;
             background-color: #2563eb; border-radius: 2px; animation: blink 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
+        
+        /* Style khusus untuk karakter Enter */
+        .letter.enter-key {
+            color: #94a3b8;
+            font-size: 0.8em;
+            margin-left: 2px;
+        }
+        .letter.enter-key.correct { color: #22c55e; }
+        .letter.enter-key.incorrect { color: #ef4444; }
+
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         
         /* Keyboard & Scrollbar */
@@ -522,6 +532,7 @@
                                     <th class="px-6 py-4 font-bold tracking-wider">Waktu</th>
                                     <th class="px-6 py-4 text-right font-bold tracking-wider">WPM</th>
                                     <th class="px-6 py-4 text-right font-bold tracking-wider">Akurasi</th>
+                                    <th class="px-6 py-4 text-center font-bold tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody id="live-list-body" class="divide-y divide-slate-700/50">
@@ -570,17 +581,17 @@
     <script>
         // --- GEMINI AI FUNCTIONS ---
         const defaultParagraphs = [
-            "Teknologi informasi dan komunikasi telah berkembang sangat pesat dalam dua dekade terakhir, mengubah cara manusia bekerja, belajar, dan berinteraksi satu sama lain. Di era digital ini, literasi komputer bukan lagi sekadar keterampilan tambahan, melainkan kebutuhan mendasar bagi setiap individu yang ingin bersaing di dunia global. Siswa sekolah menengah pertama diharapkan tidak hanya mampu menggunakan aplikasi perkantoran standar, tetapi juga memahami etika digital, keamanan siber, dan logika pemrograman dasar untuk memecahkan masalah sehari-hari.",
-            "Sumpah Pemuda pada tanggal 28 Oktober 1928 merupakan tonggak sejarah penting dalam pergerakan kemerdekaan Indonesia. Ikrar ini menegaskan cita-cita berdirinya negara Indonesia dengan semangat satu tanah air, satu bangsa, dan satu bahasa. Peristiwa ini mengajarkan kita bahwa persatuan dan kesatuan adalah kunci utama dalam menghadapi segala tantangan bangsa. Sebagai generasi penerus, pelajar memiliki tanggung jawab moral untuk menjaga keutuhan Negara Kesatuan Republik Indonesia dengan cara belajar tekun dan berprestasi.",
-            "Pemanasan global adalah isu lingkungan mendesak yang membutuhkan perhatian serius dari seluruh penduduk bumi. Meningkatnya suhu rata-rata atmosfer, laut, dan daratan bumi telah menyebabkan perubahan pola cuaca yang ekstrem dan naiknya permukaan air laut. Upaya penanggulangan seperti reboisasi hutan, pengurangan emisi gas rumah kaca, dan penggunaan energi terbarukan harus terus digalakkan. Generasi muda dapat berkontribusi mulai dari hal kecil, seperti mengurangi penggunaan plastik sekali pakai dan menghemat penggunaan listrik di rumah.",
-            "Pendidikan karakter di sekolah bertujuan untuk membentuk pribadi siswa yang tidak hanya cerdas secara intelektual, tetapi juga memiliki moral yang baik dan integritas tinggi. Nilai-nilai seperti kejujuran, disiplin, tanggung jawab, dan gotong royong harus ditanamkan sejak dini agar menjadi kebiasaan yang melekat. Dalam menghadapi revolusi industri 4.0, kecerdasan emosional dan kemampuan beradaptasi menjadi faktor penentu kesuksesan seseorang, melengkapi kemampuan teknis yang diperoleh di bangku sekolah."
+            "Teknologi informasi dan komunikasi telah berkembang sangat pesat dalam dua dekade terakhir, mengubah cara manusia bekerja, belajar, dan berinteraksi satu sama lain. Di era digital ini, literasi komputer bukan lagi sekadar keterampilan tambahan, melainkan kebutuhan mendasar bagi setiap individu yang ingin bersaing di dunia global. Siswa sekolah menengah pertama diharapkan tidak hanya mampu menggunakan aplikasi perkantoran standar, tetapi juga memahami etika digital, keamanan siber, dan logika pemrograman dasar untuk memecahkan masalah sehari-hari.\n\nNamun, kemajuan teknologi juga membawa tantangan baru yang harus dihadapi dengan bijak.",
+            "Sumpah Pemuda pada tanggal 28 Oktober 1928 merupakan tonggak sejarah penting dalam pergerakan kemerdekaan Indonesia. Ikrar ini menegaskan cita-cita berdirinya negara Indonesia dengan semangat satu tanah air, satu bangsa, dan satu bahasa. Peristiwa ini mengajarkan kita bahwa persatuan dan kesatuan adalah kunci utama dalam menghadapi segala tantangan bangsa. Sebagai generasi penerus, pelajar memiliki tanggung jawab moral untuk menjaga keutuhan Negara Kesatuan Republik Indonesia dengan cara belajar tekun dan berprestasi.\n\nTanpa semangat persatuan, bangsa ini akan mudah terpecah belah oleh kepentingan golongan.",
+            "Pemanasan global adalah isu lingkungan mendesak yang membutuhkan perhatian serius dari seluruh penduduk bumi. Meningkatnya suhu rata-rata atmosfer, laut, dan daratan bumi telah menyebabkan perubahan pola cuaca yang ekstrem dan naiknya permukaan air laut. Upaya penanggulangan seperti reboisasi hutan, pengurangan emisi gas rumah kaca, dan penggunaan energi terbarukan harus terus digalakkan. Generasi muda dapat berkontribusi mulai dari hal kecil, seperti mengurangi penggunaan plastik sekali pakai dan menghemat penggunaan listrik di rumah.\n\nLangkah kecil yang dilakukan secara kolektif akan memberikan dampak besar bagi kelestarian bumi.",
+            "Pendidikan karakter di sekolah bertujuan untuk membentuk pribadi siswa yang tidak hanya cerdas secara intelektual, tetapi juga memiliki moral yang baik dan integritas tinggi. Nilai-nilai seperti kejujuran, disiplin, tanggung jawab, dan gotong royong harus ditanamkan sejak dini agar menjadi kebiasaan yang melekat. Dalam menghadapi revolusi industri 4.0, kecerdasan emosional dan kemampuan beradaptasi menjadi faktor penentu kesuksesan seseorang, melengkapi kemampuan teknis yang diperoleh di bangku sekolah.\n\nKarakter yang kuat adalah fondasi utama dalam membangun masa depan yang gemilang."
         ];
 
         async function getAIParagraph() {
             if (!geminiApiKey) return defaultParagraphs[Math.floor(Math.random() * defaultParagraphs.length)];
             
-            // Updated prompt for longer text
-            const prompt = "Buatkan 1 paragraf panjang (sekitar 100-150 kata) dalam bahasa Indonesia baku yang edukatif untuk siswa SMP kelas 8. Topik: Teknologi AI, Sejarah Majapahit, atau Biologi Lingkungan. Langsung berikan paragrafnya saja tanpa pembuka/penutup.";
+            // Updated prompt for longer text and newlines
+            const prompt = "Buatkan 1 teks latihan mengetik (sekitar 100-150 kata) dalam bahasa Indonesia baku. Topik: Teknologi, Sejarah, atau Sains. Pecah teks menjadi 2 paragraf yang dipisahkan oleh satu baris kosong (double newline) untuk melatih tombol Enter. Langsung berikan teksnya saja.";
             
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`, {
@@ -927,6 +938,7 @@
             }
             if (state.active && !state.finished) {
                 if (e.key === "Backspace") handleBackspace();
+                else if (e.key === "Enter") handleInput('\n'); // HANDLE ENTER
                 else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) handleInput(e.key);
             }
         });
@@ -949,8 +961,19 @@
             loadingOverlay.classList.add('hidden');
             typingArea.innerHTML = ''; state.charElements = [];
             state.fullText.forEach(char => {
-                const span = document.createElement('span'); span.innerText = char; span.className = 'letter pending';
-                typingArea.appendChild(span); state.charElements.push(span);
+                const span = document.createElement('span');
+                if (char === '\n') {
+                    span.innerHTML = '↵'; // Visual cue for Enter
+                    span.className = 'letter pending enter-key';
+                } else {
+                    span.innerText = char;
+                    span.className = 'letter pending';
+                }
+                typingArea.appendChild(span);
+                state.charElements.push(span);
+                if (char === '\n') {
+                    typingArea.appendChild(document.createElement('br'));
+                }
             });
             state.currentIndex = 0; state.correctChars = 0; state.incorrectChars = 0;
             state.elapsedTime = 0; state.active = false; state.finished = false;
@@ -978,8 +1001,18 @@
             const currentEl = state.charElements[state.currentIndex];
             const correctChar = state.fullText[state.currentIndex];
             currentEl.classList.remove('active');
-            if (key === correctChar) { currentEl.className = 'letter correct'; state.correctChars++; } 
-            else { currentEl.className = 'letter incorrect'; state.incorrectChars++; }
+            
+            // Check match (works for \n too)
+            if (key === correctChar) { 
+                currentEl.classList.add('correct'); 
+                currentEl.classList.remove('pending');
+                state.correctChars++; 
+            } else { 
+                currentEl.classList.add('incorrect');
+                currentEl.classList.remove('pending');
+                state.incorrectChars++; 
+            }
+            
             state.currentIndex++;
             if (state.currentIndex >= state.fullText.length) endGame();
             else state.charElements[state.currentIndex].classList.add('active');
@@ -995,6 +1028,7 @@
                 if (prevEl.classList.contains('correct')) state.correctChars--;
                 if (prevEl.classList.contains('incorrect')) state.incorrectChars--;
                 prevEl.className = 'letter pending active';
+                prevEl.classList.remove('correct', 'incorrect');
             }
         }
 
@@ -1087,7 +1121,7 @@
             } else {
                 displayData.forEach((r, i) => {
                     const rank = i + 4;
-                    html += `<tr class="hover:bg-slate-700/30 transition border-b border-slate-700/50"><td class="px-6 py-3 font-mono text-slate-400">#${rank}</td><td class="px-6 py-3 font-bold text-white">${r.nama}</td><td class="px-6 py-3 text-slate-400 font-mono text-xs">${r.kelas}</td><td class="px-6 py-3 font-mono text-slate-300 font-bold">${r.duration ? r.duration + 's' : '-'}</td><td class="px-6 py-3 text-right font-mono font-bold text-brand-400 text-lg">${r.wpm}</td><td class="px-6 py-3 text-right font-mono text-emerald-400">${r.accuracy}%</td></tr>`;
+                    html += `<tr class="hover:bg-slate-700/30 transition border-b border-slate-700/50"><td class="px-6 py-3 font-mono text-slate-400">#${rank}</td><td class="px-6 py-3 font-bold text-white">${r.nama}</td><td class="px-6 py-3 text-slate-400 font-mono text-xs">${r.kelas}</td><td class="px-6 py-3 font-mono text-slate-300 font-bold">${r.duration ? r.duration + 's' : '-'}</td><td class="px-6 py-3 text-right font-mono font-bold text-brand-400 text-lg">${r.wpm}</td><td class="px-6 py-3 text-right font-mono text-emerald-400">${r.accuracy}%</td><td class="px-6 py-3 text-center"><button onclick="deleteResult(${r.id}, '${r.nama.replace(/'/g, "\\'")}')" class="text-red-500 hover:text-red-700 bg-red-50/10 hover:bg-red-500/20 p-2 rounded-lg transition" title="Hapus Data"><i class="fas fa-trash-alt"></i></button></td></tr>`;
                 });
             }
             listBody.innerHTML = html;
@@ -1104,6 +1138,32 @@
         const adminLoginError = document.getElementById('admin-login-error'); 
         const adminResetGlobalBtn = document.getElementById('admin-reset-global-btn');
         const adminDownloadBtn = document.getElementById('admin-download-btn');
+
+        // EXPOSE deleteResult TO GLOBAL SCOPE
+        window.deleteResult = async (id, nama) => {
+            // Level 1: Standard Confirm
+            if (!confirm(`⚠️ PERINGATAN HAPUS DATA ⚠️\n\nApakah Anda yakin ingin menghapus nilai milik: ${nama}?\n\nTindakan ini tidak dapat dibatalkan!`)) return;
+
+            // Level 2: Random Code Verification
+            const code = Math.floor(1000 + Math.random() * 9000); // Generate 4 digit code
+            const input = prompt(`🔒 VERIFIKASI KEAMANAN TERAKHIR\n\nKetik kode ${code} untuk menghapus data permanen:`);
+
+            if (input === String(code)) {
+                // Execute Delete
+                const { error } = await supabaseClient.from('exam_results').delete().eq('id', id);
+                if (error) {
+                    alert("Gagal menghapus: " + error.message);
+                } else {
+                    alert("Data berhasil dihapus.");
+                    // Remove from local array immediately for UI feedback
+                    allResultsData = allResultsData.filter(r => r.id !== id);
+                    renderLivePodium(allResultsData);
+                    updateLiveChart(allResultsData);
+                }
+            } else if (input !== null) {
+                alert("Kode verifikasi salah. Penghapusan dibatalkan.");
+            }
+        };
 
         openAdminBtn.onclick = () => { adminLoginModal.classList.remove('hidden'); adminPassInput.value = ''; adminLoginError.classList.add('hidden'); adminPassInput.classList.remove('border-red-500'); };
         closeAdminLogin.onclick = () => adminLoginModal.classList.add('hidden');
